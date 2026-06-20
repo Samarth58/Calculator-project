@@ -2,158 +2,50 @@
 const display = document.getElementById("display");
 const buttons = document.getElementById("buttons");
 
-const calculator = {
-  firstValue: null,
-  operator: null,
-  waitingForSecondValue: false,
-  displayValue: "0",
-  expression: "0",
-};
+let expression = "";
 
 function updateDisplay() {
-  display.textContent = calculator.expression;
+  display.textContent = expression || "0";
 }
 
-function inputNumber(number) {
-  if (calculator.waitingForSecondValue) {
-    calculator.displayValue = number;
-    calculator.waitingForSecondValue = false;
+function calculateExpression(expr) {
+  let tokens = expr.trim().split(" ");
 
-    if (
-      calculator.expression.endsWith("+ ") ||
-      calculator.expression.endsWith("- ") ||
-      calculator.expression.endsWith("* ") ||
-      calculator.expression.endsWith("/ ")
-    ) {
-      calculator.expression += number;
-    } else {
-      calculator.expression = number;
-    }
-  } else {
-    calculator.displayValue =
-      calculator.displayValue === "0"
-        ? number
-        : calculator.displayValue + number;
+  // Handle * and /
+  for (let i = 0; i < tokens.length; i++) {
+    if (tokens[i] === "*" || tokens[i] === "/") {
+      const left = parseFloat(tokens[i - 1]);
+      const right = parseFloat(tokens[i + 1]);
 
-    if (
-      calculator.expression === "0" ||
-      calculator.expression === "Error"
-    ) {
-      calculator.expression = calculator.displayValue;
-    } else {
-      calculator.expression += number;
+      let result;
+
+      if (tokens[i] === "*") {
+        result = left * right;
+      } else {
+        if (right === 0) return "Error";
+        result = left / right;
+      }
+
+      tokens.splice(i - 1, 3, result.toString());
+      i--;
     }
   }
 
-  updateDisplay();
-}
+  // Handle + and -
+  let result = parseFloat(tokens[0]);
 
-function inputDecimal() {
-  if (calculator.waitingForSecondValue) {
-    calculator.displayValue = "0.";
-    calculator.expression += "0.";
-    calculator.waitingForSecondValue = false;
+  for (let i = 1; i < tokens.length; i += 2) {
+    const operator = tokens[i];
+    const value = parseFloat(tokens[i + 1]);
 
-    updateDisplay();
-    return;
-  }
-
-  if (!calculator.displayValue.includes(".")) {
-    calculator.displayValue += ".";
-    calculator.expression += ".";
-  }
-
-  updateDisplay();
-}
-
-function calculate(first, second, operator) {
-  switch (operator) {
-    case "+":
-      return first + second;
-
-    case "-":
-      return first - second;
-
-    case "*":
-      return first * second;
-
-    case "/":
-      return second === 0 ? "Error" : first / second;
-
-    default:
-      return second;
-  }
-}
-
-function handleOperator(nextOperator) {
-  const inputValue = parseFloat(calculator.displayValue);
-
-  // User changes operator before entering second operand
-  if (
-    calculator.operator &&
-    calculator.waitingForSecondValue
-  ) {
-    calculator.operator = nextOperator;
-
-    calculator.expression =
-      calculator.expression.slice(0, -3) +
-      ` ${nextOperator} `;
-
-    updateDisplay();
-    return;
-  }
-
-  if (calculator.firstValue === null) {
-    calculator.firstValue = inputValue;
-  } else if (calculator.operator) {
-    const result = calculate(
-      calculator.firstValue,
-      inputValue,
-      calculator.operator
-    );
-
-    if (result === "Error") {
-      calculator.expression = "Error";
-      updateDisplay();
-
-      setTimeout(() => {
-        resetCalculator();
-        updateDisplay();
-      }, 1500);
-
-      return;
+    if (operator === "+") {
+      result += value;
+    } else if (operator === "-") {
+      result -= value;
     }
-
-    calculator.firstValue = result;
   }
 
-  calculator.operator = nextOperator;
-  calculator.waitingForSecondValue = true;
-
-  calculator.expression += ` ${nextOperator} `;
-
-  updateDisplay();
-}
-
-function resetCalculator() {
-  calculator.firstValue = null;
-  calculator.operator = null;
-  calculator.waitingForSecondValue = false;
-  calculator.displayValue = "0";
-  calculator.expression = "0";
-}
-
-function deleteLastDigit() {
-  if (calculator.displayValue.length > 1) {
-    calculator.displayValue =
-      calculator.displayValue.slice(0, -1);
-  } else {
-    calculator.displayValue = "0";
-  }
-
-  calculator.expression = calculator.displayValue;
-
-  updateDisplay();
+  return result;
 }
 
 buttons.addEventListener("click", (event) => {
@@ -161,61 +53,60 @@ buttons.addEventListener("click", (event) => {
 
   if (!target.matches("button")) return;
 
+  // Numbers
   if (target.dataset.number) {
-    inputNumber(target.dataset.number);
+    expression += target.dataset.number;
+    updateDisplay();
   }
 
+  // Decimal
   if (target.dataset.decimal) {
-    inputDecimal();
+    const parts = expression.split(/[\+\-\*\/]/);
+    const currentNumber = parts[parts.length - 1];
+
+    if (!currentNumber.includes(".")) {
+      expression += ".";
+    }
+
+    updateDisplay();
   }
 
+  // Operators
   if (target.dataset.operator) {
-    handleOperator(target.dataset.operator);
+    const operator = target.dataset.operator;
+
+    // Change operator if last character is already an operator
+    if (/[+\-*/]\s*$/.test(expression)) {
+      expression = expression.replace(/[+\-*/]\s*$/, operator + " ");
+    } else if (expression !== "") {
+      expression += " " + operator + " ";
+    }
+
+    updateDisplay();
   }
 
+  // Equals
   if (target.dataset.action === "equals") {
-    if (calculator.operator) {
-      const secondValue = parseFloat(
-        calculator.displayValue
-      );
+    if (expression !== "") {
+      const result = calculateExpression(expression);
 
-      const result = calculate(
-        calculator.firstValue,
-        secondValue,
-        calculator.operator
-      );
-
-      if (result === "Error") {
-        calculator.expression = "Error";
-        updateDisplay();
-
-        setTimeout(() => {
-          resetCalculator();
-          updateDisplay();
-        }, 1500);
-
-        return;
-      }
-
-      calculator.displayValue = String(result);
-      calculator.expression = String(result);
-
-      calculator.firstValue = null;
-      calculator.operator = null;
-      calculator.waitingForSecondValue = false;
-
+      expression = String(result);
       updateDisplay();
     }
   }
 
+  // Clear
   if (target.dataset.action === "clear") {
-    resetCalculator();
+    expression = "";
     updateDisplay();
   }
 
+  // Delete
   if (target.dataset.action === "delete") {
-    deleteLastDigit();
+    expression = expression.slice(0, -1);
+    updateDisplay();
   }
 });
 
 updateDisplay();
+
