@@ -1,230 +1,221 @@
+
 const display = document.getElementById("display");
 const buttons = document.getElementById("buttons");
 
 const calculator = {
-    firstValue: null,
-    operator: null,
-    waitingForSecondValue: false,
-    displayValue: "0",
-    expression: "0"
+  firstValue: null,
+  operator: null,
+  waitingForSecondValue: false,
+  displayValue: "0",
+  expression: "0",
 };
 
 function updateDisplay() {
-    display.textContent = calculator.expression;
+  display.textContent = calculator.expression;
 }
 
 function inputNumber(number) {
+  if (calculator.waitingForSecondValue) {
+    calculator.displayValue = number;
+    calculator.waitingForSecondValue = false;
 
-    if (calculator.waitingForSecondValue) {
-
-        calculator.displayValue = number;
-        calculator.waitingForSecondValue = false;
-
-        calculator.expression += number;
-
+    if (
+      calculator.expression.endsWith("+ ") ||
+      calculator.expression.endsWith("- ") ||
+      calculator.expression.endsWith("* ") ||
+      calculator.expression.endsWith("/ ")
+    ) {
+      calculator.expression += number;
     } else {
-
-        calculator.displayValue =
-            calculator.displayValue === "0"
-                ? number
-                : calculator.displayValue + number;
-
-        if (
-            calculator.expression === "0" ||
-            calculator.expression === "Error"
-        ) {
-            calculator.expression = calculator.displayValue;
-        } else {
-            calculator.expression += number;
-        }
+      calculator.expression = number;
     }
+  } else {
+    calculator.displayValue =
+      calculator.displayValue === "0"
+        ? number
+        : calculator.displayValue + number;
 
-    updateDisplay();
+    if (
+      calculator.expression === "0" ||
+      calculator.expression === "Error"
+    ) {
+      calculator.expression = calculator.displayValue;
+    } else {
+      calculator.expression += number;
+    }
+  }
+
+  updateDisplay();
 }
 
 function inputDecimal() {
-
-    if (calculator.waitingForSecondValue) {
-
-        calculator.displayValue = "0.";
-        calculator.expression += "0.";
-        calculator.waitingForSecondValue = false;
-
-        updateDisplay();
-        return;
-    }
-
-    if (!calculator.displayValue.includes(".")) {
-
-        calculator.displayValue += ".";
-        calculator.expression += ".";
-    }
+  if (calculator.waitingForSecondValue) {
+    calculator.displayValue = "0.";
+    calculator.expression += "0.";
+    calculator.waitingForSecondValue = false;
 
     updateDisplay();
+    return;
+  }
+
+  if (!calculator.displayValue.includes(".")) {
+    calculator.displayValue += ".";
+    calculator.expression += ".";
+  }
+
+  updateDisplay();
 }
 
 function calculate(first, second, operator) {
+  switch (operator) {
+    case "+":
+      return first + second;
 
-    switch (operator) {
+    case "-":
+      return first - second;
 
-        case "+":
-            return first + second;
+    case "*":
+      return first * second;
 
-        case "-":
-            return first - second;
+    case "/":
+      return second === 0 ? "Error" : first / second;
 
-        case "*":
-            return first * second;
-
-        case "/":
-
-            if (second === 0) {
-                return "Error";
-            }
-
-            return first / second;
-
-        default:
-            return second;
-    }
+    default:
+      return second;
+  }
 }
 
 function handleOperator(nextOperator) {
+  const inputValue = parseFloat(calculator.displayValue);
 
-    const inputValue = parseFloat(calculator.displayValue);
-
-    if (
-        calculator.operator &&
-        calculator.waitingForSecondValue
-    ) {
-
-        calculator.operator = nextOperator;
-
-        calculator.expression =
-            calculator.expression.slice(0, -1) + nextOperator;
-
-        updateDisplay();
-        return;
-    }
-
-    if (calculator.firstValue === null) {
-
-        calculator.firstValue = inputValue;
-
-    } else if (calculator.operator) {
-
-        const result = calculate(
-            calculator.firstValue,
-            inputValue,
-            calculator.operator
-        );
-
-        if (result === "Error") {
-
-            calculator.expression = "Error";
-            updateDisplay();
-
-            resetCalculator();
-            return;
-        }
-
-        calculator.firstValue = result;
-    }
-
+  // User changes operator before entering second operand
+  if (
+    calculator.operator &&
+    calculator.waitingForSecondValue
+  ) {
     calculator.operator = nextOperator;
-    calculator.waitingForSecondValue = true;
 
-    calculator.expression += " " + nextOperator + " ";
+    calculator.expression =
+      calculator.expression.slice(0, -3) +
+      ` ${nextOperator} `;
 
     updateDisplay();
+    return;
+  }
+
+  if (calculator.firstValue === null) {
+    calculator.firstValue = inputValue;
+  } else if (calculator.operator) {
+    const result = calculate(
+      calculator.firstValue,
+      inputValue,
+      calculator.operator
+    );
+
+    if (result === "Error") {
+      calculator.expression = "Error";
+      updateDisplay();
+
+      setTimeout(() => {
+        resetCalculator();
+        updateDisplay();
+      }, 1500);
+
+      return;
+    }
+
+    calculator.firstValue = result;
+  }
+
+  calculator.operator = nextOperator;
+  calculator.waitingForSecondValue = true;
+
+  calculator.expression += ` ${nextOperator} `;
+
+  updateDisplay();
 }
 
 function resetCalculator() {
-
-    calculator.firstValue = null;
-    calculator.operator = null;
-    calculator.waitingForSecondValue = false;
-    calculator.displayValue = "0";
-    calculator.expression = "0";
+  calculator.firstValue = null;
+  calculator.operator = null;
+  calculator.waitingForSecondValue = false;
+  calculator.displayValue = "0";
+  calculator.expression = "0";
 }
 
 function deleteLastDigit() {
+  if (calculator.displayValue.length > 1) {
+    calculator.displayValue =
+      calculator.displayValue.slice(0, -1);
+  } else {
+    calculator.displayValue = "0";
+  }
 
-    if (calculator.displayValue.length > 1) {
+  calculator.expression = calculator.displayValue;
 
-        calculator.displayValue =
-            calculator.displayValue.slice(0, -1);
-
-    } else {
-
-        calculator.displayValue = "0";
-    }
-
-    calculator.expression = calculator.displayValue;
-
-    updateDisplay();
+  updateDisplay();
 }
 
 buttons.addEventListener("click", (event) => {
+  const target = event.target;
 
-    const target = event.target;
+  if (!target.matches("button")) return;
 
-    if (!target.matches("button")) return;
+  if (target.dataset.number) {
+    inputNumber(target.dataset.number);
+  }
 
-    if (target.dataset.number) {
-        inputNumber(target.dataset.number);
-    }
+  if (target.dataset.decimal) {
+    inputDecimal();
+  }
 
-    if (target.dataset.decimal) {
-        inputDecimal();
-    }
+  if (target.dataset.operator) {
+    handleOperator(target.dataset.operator);
+  }
 
-    if (target.dataset.operator) {
-        handleOperator(target.dataset.operator);
-    }
+  if (target.dataset.action === "equals") {
+    if (calculator.operator) {
+      const secondValue = parseFloat(
+        calculator.displayValue
+      );
 
-    if (target.dataset.action === "equals") {
+      const result = calculate(
+        calculator.firstValue,
+        secondValue,
+        calculator.operator
+      );
 
-        if (calculator.operator) {
-
-            const secondValue =
-                parseFloat(calculator.displayValue);
-
-            const result = calculate(
-                calculator.firstValue,
-                secondValue,
-                calculator.operator
-            );
-
-            if (result === "Error") {
-
-                calculator.expression = "Error";
-                updateDisplay();
-
-                setTimeout(resetCalculator, 1500);
-                return;
-            }
-
-            calculator.displayValue = String(result);
-            calculator.expression = String(result);
-
-            calculator.firstValue = null;
-            calculator.operator = null;
-            calculator.waitingForSecondValue = false;
-
-            updateDisplay();
-        }
-    }
-
-    if (target.dataset.action === "clear") {
-
-        resetCalculator();
+      if (result === "Error") {
+        calculator.expression = "Error";
         updateDisplay();
-    }
 
-    if (target.dataset.action === "delete") {
-        deleteLastDigit();
+        setTimeout(() => {
+          resetCalculator();
+          updateDisplay();
+        }, 1500);
+
+        return;
+      }
+
+      calculator.displayValue = String(result);
+      calculator.expression = String(result);
+
+      calculator.firstValue = null;
+      calculator.operator = null;
+      calculator.waitingForSecondValue = false;
+
+      updateDisplay();
     }
+  }
+
+  if (target.dataset.action === "clear") {
+    resetCalculator();
+    updateDisplay();
+  }
+
+  if (target.dataset.action === "delete") {
+    deleteLastDigit();
+  }
 });
 
 updateDisplay();
